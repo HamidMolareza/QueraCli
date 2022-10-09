@@ -80,7 +80,7 @@ public static class Login {
         client.DefaultRequestHeaders.Add("Cookie", loginPageData.HeaderCsrfToken.Header);
         client.DefaultRequestHeaders.Add("Referer", "https://quera.org");
 
-        var postResponse = await client.PostAsync(AppSetting.QueraLogin, form);
+        var postResponse = await client.PostAsync(AppSetting.LoginUrl, form);
         if (!postResponse.IsSuccessStatusCode && postResponse.StatusCode != HttpStatusCode.Found)
             throw new Exception($"Response status code does not indicate success: {postResponse.StatusCode}");
 
@@ -90,7 +90,7 @@ public static class Login {
     }
 
     private static async Task<LoginPageData> GetLoginDataAsync(HttpClient client) {
-        var getResponse = await client.GetAsync(AppSetting.QueraLogin);
+        var getResponse = await client.GetAsync(AppSetting.LoginUrl);
 
         var headerCsrfToken = getResponse.Headers.GetSetCookieHeader("csrf_token");
         if (headerCsrfToken is null)
@@ -106,7 +106,7 @@ public static class Login {
         };
     }
 
-    private static async Task<bool> IsLoginAsync(string? sessionId) {
+    public static async Task<bool> IsLoginAsync(string? sessionId) {
         if (sessionId is null)
             return false;
 
@@ -115,7 +115,7 @@ public static class Login {
         });
         client.AddSessionIdToHeader(sessionId);
 
-        var response = await client.GetAsync(AppSetting.QueraProfile);
+        var response = await client.GetAsync(AppSetting.ProfileUrl);
         switch (response.StatusCode) {
             case HttpStatusCode.OK:
                 return true;

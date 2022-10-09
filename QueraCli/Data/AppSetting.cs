@@ -24,6 +24,7 @@ public static class AppSetting {
     };
 
     public const string QueraDomain = "https://quera.org";
-    public const string QueraProfile = "profile/";
-    public const string QueraLogin = "/accounts/login";
+    public const string ProfileUrl = "profile/";
+    public const string LoginUrl = "/accounts/login";
+    public const string ProblemsUrl = "https://quera.org/problemset/{0}/";
 }
