@@ -77,14 +77,14 @@ public static class Login {
 
         var form = new FormUrlEncodedContent(formValues);
 
-        client.DefaultRequestHeaders.Add("Cookie", loginPageData.HeaderCsrfToken.Header);
+        client.AddCookie(loginPageData.HeaderCsrfToken.Key, loginPageData.HeaderCsrfToken.Value);
         client.DefaultRequestHeaders.Add("Referer", "https://quera.org");
 
         var postResponse = await client.PostAsync(AppSetting.LoginUrl, form);
         if (!postResponse.IsSuccessStatusCode && postResponse.StatusCode != HttpStatusCode.Found)
             throw new Exception($"Response status code does not indicate success: {postResponse.StatusCode}");
 
-        var sessionId = postResponse.Headers.GetSetCookieHeader("session_id")?.Value;
+        var sessionId = postResponse.Headers.GetSetCookieFromHeader("session_id")?.Value;
 
         return sessionId;
     }
@@ -92,7 +92,7 @@ public static class Login {
     private static async Task<LoginPageData> GetLoginDataAsync(HttpClient client) {
         var getResponse = await client.GetAsync(AppSetting.LoginUrl);
 
-        var headerCsrfToken = getResponse.Headers.GetSetCookieHeader("csrf_token");
+        var headerCsrfToken = getResponse.Headers.GetSetCookieFromHeader("csrf_token");
         if (headerCsrfToken is null)
             throw new Exception("Can not find csrf token in header.");
 

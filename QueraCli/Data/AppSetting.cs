@@ -25,6 +25,8 @@ public static class AppSetting {
 
     public const string QueraDomain = "https://quera.org";
     public const string ProfileUrl = "profile/";
-    public const string LoginUrl = "/accounts/login";
-    public const string ProblemsUrl = "https://quera.org/problemset/{0}/";
+    public const string LoginUrl = "accounts/login/";
+    public const string ProblemsUrl = "problemset/{0}/";
+    public const string SubmissionsPageUrl = "problemset/{0}/submissions/";
+    public const string GetSubmissionInfoUrl = "assignment/submission_action";
 }

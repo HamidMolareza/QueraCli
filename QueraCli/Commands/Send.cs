@@ -16,13 +16,13 @@ public static class Send {
             name: "--file",
             description: "Your solution file");
 
-        var readCommand = new Command("send", "Submit file to quera") {
+        var command = new Command("send", "Submit file to quera") {
             queraIdOption,
             solutionFileOption
         };
 
-        rootCommand.AddCommand(readCommand);
-        rootCommand.SetHandler(SendHandlerAsync, queraIdOption, solutionFileOption);
+        command.SetHandler(SendHandlerAsync, queraIdOption, solutionFileOption);
+        rootCommand.AddCommand(command);
 
         return rootCommand;
     }
@@ -41,15 +41,15 @@ public static class Send {
             return;
         }
 
-        var url = string.Format(AppSetting.ProblemsUrl, queraId);
+        var problemUrl = string.Format(AppSetting.ProblemsUrl, queraId);
 
-        var client = new HttpClient();
+        var client = HttpHelper.CreateHttpClient();
         client.AddSessionIdToHeader(configs!.SessionId!);
-        client.DefaultRequestHeaders.Add("Referer", url);
+        client.DefaultRequestHeaders.Add("Referer", HttpHelper.CombineUrls(AppSetting.QueraDomain, problemUrl));
         client.DefaultRequestHeaders.Add("Origin", "https://quera.org");
 
-        var problemPageData = await GetProblemPageDataAsync(client, url);
-        await SubmitFileAsync(problemPageData, solutionFile, client, url);
+        var problemPageData = await GetProblemPageDataAsync(client, problemUrl);
+        await SubmitFileAsync(problemPageData, solutionFile, client, problemUrl);
     }
 
     private static async Task SubmitFileAsync(ProblemPageData problemPageData, string solutionFile,
@@ -67,7 +67,7 @@ public static class Send {
     private static async Task<ProblemPageData> GetProblemPageDataAsync(HttpClient client, string url) {
         var response = await client.GetAsync(url);
 
-        var headerCsrfToken = response.Headers.GetSetCookieHeader("csrf_token");
+        var headerCsrfToken = response.Headers.GetSetCookieFromHeader("csrf_token");
         if (headerCsrfToken is null)
             throw new Exception("Can not find csrf token in header.");
 
