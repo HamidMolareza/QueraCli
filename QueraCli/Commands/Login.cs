@@ -62,9 +62,34 @@ public static class Login {
     }
 
     private static async Task<string?> TryLoginAsync(string username, string password) {
-        //Get data from login page
-
         var client = HttpHelper.CreateHttpClient(new HttpClientHandler {AllowAutoRedirect = false});
+
+        var loginPageData = await GetLoginDataAsync(client);
+
+        return await PostLoginRequestAsync(username, password, loginPageData, client);
+    }
+
+    private static async Task<string?> PostLoginRequestAsync(string username, string password,
+        LoginPageData loginPageData, HttpClient client) {
+        var formValues = loginPageData.FormDefaultValues;
+        formValues.Add(new KeyValuePair<string, string>("login", username));
+        formValues.Add(new KeyValuePair<string, string>("password", password));
+
+        var form = new FormUrlEncodedContent(formValues);
+
+        client.DefaultRequestHeaders.Add("Cookie", loginPageData.HeaderCsrfToken.Header);
+        client.DefaultRequestHeaders.Add("Referer", "https://quera.org");
+
+        var postResponse = await client.PostAsync(AppSetting.QueraLogin, form);
+        if (!postResponse.IsSuccessStatusCode && postResponse.StatusCode != HttpStatusCode.Found)
+            throw new Exception($"Response status code does not indicate success: {postResponse.StatusCode}");
+
+        var sessionId = postResponse.Headers.GetSetCookieHeader("session_id")?.Value;
+
+        return sessionId;
+    }
+
+    private static async Task<LoginPageData> GetLoginDataAsync(HttpClient client) {
         var getResponse = await client.GetAsync(AppSetting.QueraLogin);
 
         var headerCsrfToken = getResponse.Headers.GetSetCookieHeader("csrf_token");
@@ -75,24 +100,10 @@ public static class Login {
         var doc = new HtmlDocument();
         doc.LoadHtml(loginPage);
 
-        //Prepare data for post request:
-
-        var formValues = HtmlHelper.GetFormDefaultValues(doc.DocumentNode);
-        formValues.Add(new KeyValuePair<string, string>("login", username));
-        formValues.Add(new KeyValuePair<string, string>("password", password));
-
-        var form = new FormUrlEncodedContent(formValues);
-
-        client.DefaultRequestHeaders.Add("Cookie", headerCsrfToken.Header);
-        client.DefaultRequestHeaders.Add("Referer", "https://quera.org");
-
-        var postResponse = await client.PostAsync(AppSetting.QueraLogin, form);
-        if (!postResponse.IsSuccessStatusCode && postResponse.StatusCode != HttpStatusCode.Found)
-            throw new Exception($"Response status code does not indicate success: {postResponse.StatusCode}");
-
-        var sessionId = postResponse.Headers.GetSetCookieHeader("session_id")?.Value;
-
-        return sessionId;
+        return new LoginPageData {
+            HeaderCsrfToken = headerCsrfToken,
+            FormDefaultValues = HtmlHelper.GetFormDefaultValues(doc.DocumentNode)
+        };
     }
 
     private static async Task<bool> IsLoginAsync(string? sessionId) {
