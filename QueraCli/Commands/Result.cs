@@ -11,8 +11,8 @@ namespace QueraCli.Commands;
 public static class Result {
     public static RootCommand AddResultCommand(this RootCommand rootCommand) {
         var queraIdOption = new Option<string>(
-            name: "--quera-id",
-            description: "Quera id");
+            name: "--id",
+            description: "Quera id") {IsRequired = true};
 
         var command = new Command("result", "Displays the last result of the submitted solution.") {queraIdOption};
 

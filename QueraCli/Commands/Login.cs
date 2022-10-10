@@ -12,10 +12,10 @@ public static class Login {
     public static RootCommand AddLoginCommand(this RootCommand rootCommand) {
         var usernameOption = new Option<string>(
             name: "--username",
-            description: "Your Quera username");
+            description: "Your Quera username") {IsRequired = true};
         var passwordOption = new Option<string>(
             name: "--password",
-            description: "Your Quera password");
+            description: "Your Quera password") {IsRequired = true};
 
         var command = new Command("login", "Login to Quera") {
             usernameOption,

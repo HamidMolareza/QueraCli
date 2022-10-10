@@ -83,7 +83,8 @@ public static class HttpHelper {
         Console.WriteLine($"Request Uri: {requestMessage.RequestUri}");
         Console.WriteLine($"Method: {requestMessage.Method}");
         Console.WriteLine($"Headers:\n{requestMessage.Headers}");
-        var content = await requestMessage.Content?.ReadAsStringAsync();
-        Console.WriteLine($"Content:\n{content}");
+        var content = requestMessage.Content;
+        if (content is not null)
+            Console.WriteLine($"Content:\n{await content.ReadAsStringAsync()}");
     }
 }
