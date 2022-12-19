@@ -65,19 +65,19 @@ public static class Send {
         }
 
         HttpContent content;
-        string solutionName;
+        string solutionFileName;
         if (!string.IsNullOrEmpty(solutionFile)) {
             content = new StreamContent(new FileStream(solutionFile, FileMode.Open));
-            solutionName = new FileInfo(solutionFile).Name;
+            solutionFileName = new FileInfo(solutionFile).Name;
         }
         else {
             content = new StringContent(await UriHelper.DownloadTextAsync(solutionUri!));
-            solutionName = UriHelper.GetUriFileName(solutionUri!);
+            solutionFileName = UriHelper.GetUriFileName(solutionUri!);
         }
 
-        if (string.IsNullOrEmpty(solutionName)) {
-            solutionName = "file";
-            ConsoleHelper.WriteLine($"Can not detect file name. using default file name ({solutionName})",
+        if (string.IsNullOrEmpty(solutionFileName)) {
+            solutionFileName = "file";
+            ConsoleHelper.WriteLine($"Can not detect file name. using default file name ({solutionFileName})",
                 Colors.Warning);
         }
 
@@ -90,6 +90,10 @@ public static class Send {
 
         ConsoleHelper.WriteLine("Get the necessary information to send the file...", Colors.Info);
         var problemPageData = await GetProblemPageDataAsync(client, problemUrl);
+
+        if (string.IsNullOrEmpty(fileType)) {
+            fileType = TryDetectFileType(solutionFileName);
+        }
 
         var fileTypeCode = GetFileTypeCode(fileType, problemPageData.ValidFileTypes);
         if (string.IsNullOrEmpty(fileTypeCode)) {
@@ -105,9 +109,31 @@ public static class Send {
         }
 
         Console.WriteLine("Submitting...");
-        await SubmitFileAsync(problemPageData, content, solutionName, client, problemUrl, fileTypeCode);
+        await SubmitFileAsync(problemPageData, content, solutionFileName, client, problemUrl, fileTypeCode);
 
         Console.WriteLine("The operation was successful.");
+    }
+
+    private static string? TryDetectFileType(string solutionFileName) {
+        var fileExtension = new FileInfo(solutionFileName.ToLower()).Extension;
+        if (fileExtension.StartsWith("."))
+            fileExtension = fileExtension.Remove(0, 1);
+
+        return fileExtension switch {
+            "c" => "c",
+            "cpp" => "c++",
+            "py" => "python 3.8",
+            "cs" => "mono c#",
+            "php" => "php8",
+            "pl" => "perl",
+            "go" => "go",
+            "rb" => "ruby",
+            "rs" => "rust",
+            "m" => "obj-c",
+            "swift" => "swift",
+            "hs" => "haskell",
+            _ => null
+        };
     }
 
     private static string? GetFileTypeCode(string? fileType, List<ValidFileType> validFileTypes) {
