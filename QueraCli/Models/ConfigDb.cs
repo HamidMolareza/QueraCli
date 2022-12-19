@@ -8,5 +8,5 @@ public class ConfigDb {
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }
 
-    public string? SessionId { get; set; } = null!;
+    [Required] public string SessionId { get; set; } = null!;
 }

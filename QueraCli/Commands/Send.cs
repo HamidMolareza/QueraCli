@@ -12,6 +12,7 @@ public static class Send {
         var queraIdOption = new Option<string>(
             name: "--id",
             description: "Quera id") {IsRequired = true};
+
         var solutionFileOption = new Option<string>(
             name: "--file",
             description: "Your solution file",
@@ -21,7 +22,12 @@ public static class Send {
                     return filePath;
                 argumentResult.ErrorMessage = $"File path is not valid. Can not find any file in {filePath}";
                 return null!;
-            }) {IsRequired = true};
+            }) {IsRequired = false};
+
+        var solutionUrlOption = new Option<string>(
+            name: "--uri",
+            description: "Your solution uri");
+
         var fileTypeOption = new Option<string>(
             name: "--type",
             description: "Your solution file type");
@@ -29,49 +35,77 @@ public static class Send {
         var command = new Command("send", "Submit file to quera") {
             queraIdOption,
             solutionFileOption,
+            solutionUrlOption,
             fileTypeOption
         };
 
-        command.SetHandler(SendHandlerAsync, queraIdOption, solutionFileOption, fileTypeOption);
+        command.SetHandler(SendHandlerAsync, queraIdOption, solutionFileOption, solutionUrlOption, fileTypeOption);
         rootCommand.AddCommand(command);
 
         return rootCommand;
     }
 
-    public static async Task SendHandlerAsync(string queraId, string solutionFile, string? fileType) {
+    public static async Task SendHandlerAsync(string queraId, string? solutionFile, string? solutionUri,
+        string? fileType) {
+        var solutionParameters = Utility.CountNullOrEmpty(solutionFile, solutionUri);
+        switch (solutionParameters) {
+            case 0:
+                ConsoleHelper.WriteLine("Enter only one of the parameters file or uri.", Colors.Error);
+                return;
+            case 2:
+                ConsoleHelper.WriteLine("Enter at least one of the parameters file or uri.", Colors.Error);
+                return;
+        }
+
         await using var db = new QueraContext();
         var configs = await db.Configs.FirstOrDefaultAsync();
-
         if (!await Login.IsLoginAsync(configs?.SessionId)) {
-            Console.WriteLine("You need login first.");
+            ConsoleHelper.WriteLine("You need login first.", Colors.Error);
             return;
+        }
+
+        HttpContent content;
+        string solutionName;
+        if (!string.IsNullOrEmpty(solutionFile)) {
+            content = new StreamContent(new FileStream(solutionFile, FileMode.Open));
+            solutionName = new FileInfo(solutionFile).Name;
+        }
+        else {
+            content = new StringContent(await UriHelper.DownloadTextAsync(solutionUri!));
+            solutionName = UriHelper.GetUriFileName(solutionUri!);
+        }
+
+        if (string.IsNullOrEmpty(solutionName)) {
+            solutionName = "file";
+            ConsoleHelper.WriteLine($"Can not detect file name. using default file name ({solutionName})",
+                Colors.Warning);
         }
 
         var problemUrl = string.Format(AppSetting.ProblemsUrl, queraId);
 
         var client = HttpHelper.CreateHttpClient();
-        client.AddSessionIdToHeader(configs!.SessionId!);
+        client.AddSessionIdToHeader(configs!.SessionId);
         client.DefaultRequestHeaders.Add("Referer", HttpHelper.CombineUrls(AppSetting.QueraDomain, problemUrl));
         client.DefaultRequestHeaders.Add("Origin", "https://quera.org");
 
-        Console.WriteLine("Get the necessary information to send the file...");
+        ConsoleHelper.WriteLine("Get the necessary information to send the file...", Colors.Info);
         var problemPageData = await GetProblemPageDataAsync(client, problemUrl);
 
         var fileTypeCode = GetFileTypeCode(fileType, problemPageData.ValidFileTypes);
         if (string.IsNullOrEmpty(fileTypeCode)) {
-            ConsoleHelper.WriteLine("Error! Your file type is not valid.", ConsoleColor.Red);
+            ConsoleHelper.WriteLine("Error! Your file type is not valid.", Colors.Error);
             Console.WriteLine();
 
             Console.WriteLine("Valid file types:");
             foreach (var validFileType in problemPageData.ValidFileTypes)
                 Console.WriteLine(validFileType.DisplayName);
 
-            ConsoleHelper.WriteLine("Use --help for more info.", ConsoleColor.Green);
+            ConsoleHelper.WriteLine("Use --help for more info.", Colors.Info);
             return;
         }
 
         Console.WriteLine("Submitting...");
-        await SubmitFileAsync(problemPageData, solutionFile, client, problemUrl, fileTypeCode!);
+        await SubmitFileAsync(problemPageData, content, solutionName, client, problemUrl, fileTypeCode);
 
         Console.WriteLine("The operation was successful.");
     }
@@ -83,15 +117,14 @@ public static class Send {
         return validFileTypes.Find(validType => validType.Key == fileType)?.Value;
     }
 
-    private static async Task SubmitFileAsync(ProblemPageData problemPageData, string solutionFile,
-        HttpClient client, string url, string fileTypeCode) {
+    private static async Task SubmitFileAsync(ProblemPageData problemPageData, HttpContent solutionContent,
+        string solutionName, HttpClient client, string url, string fileTypeCode) {
         client.AddCookie(problemPageData.HeaderCsrfToken.Key, problemPageData.HeaderCsrfToken.Value);
 
         var form = new MultipartFormDataContent();
         foreach (var (key, value) in problemPageData.FormDefaultValues)
             form.Add(new StringContent(value), key);
-        form.Add(new StreamContent(new FileStream(solutionFile, FileMode.Open)), "file",
-            new FileInfo(solutionFile).Name);
+        form.Add(solutionContent, "file", solutionName);
         form.Add(new StringContent(fileTypeCode), "file_type");
 
         var response = await client.PostAsync(url, form);
