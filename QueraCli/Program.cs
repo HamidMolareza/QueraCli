@@ -15,7 +15,8 @@ public static class Program {
         var rootCommand = new RootCommand("Quera Command Line");
         rootCommand.AddLoginCommand()
             .AddSendCommand()
-            .AddResultCommand();
+            .AddResultCommand()
+            .AddLogoutCommand();
 
         return await rootCommand.InvokeAsync(args);
     }
