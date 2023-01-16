@@ -132,6 +132,7 @@ public static class Send {
             "m" => "obj-c",
             "swift" => "swift",
             "hs" => "haskell",
+            "js" => "javascript",
             _ => null
         };
     }
